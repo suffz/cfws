@@ -2,7 +2,7 @@ Example Usage:
 
 ```go
 func main() {
-	conn := (&WebsocketOptions{
+	conn := (&cfws.WebsocketOptions{
 		URL:        "wss://ws.bloxflip.com/socket.io/?EIO=3&transport=websocket",
 		ServerName: "ws.bloxflip.com", PORT: "443",
 		Origin:    "https://bloxflip.com",
