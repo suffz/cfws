@@ -18,6 +18,8 @@ func main() {
 		Origin:    "https://bloxflip.com",
 		Host:      "ws.bloxflip.com",
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.203",
+		ReadSize:  MBs(5),
+		WriteSize: MBs(5),
 		// Extensions: "permessage-deflate; client_max_window_bits",
 	}).Dial()
 	for {
@@ -28,12 +30,18 @@ func main() {
 */
 
 type WebsocketOptions struct {
-	URL              string
-	ServerName, PORT string
-	Origin           string
-	Host             string
-	Extensions       string
-	UserAgent        string
+	URL                 string
+	ServerName, PORT    string
+	Origin              string
+	Host                string
+	Extensions          string
+	UserAgent           string
+	ReadSize, WriteSize int
+}
+
+// If you use the MBs() func just know it scales up to Megabits, 5 = 5MB.
+func MBs(i int) int {
+	return i * 1024 * 1024
 }
 
 type WebsocketConnection struct {
@@ -59,7 +67,7 @@ func (Info *WebsocketOptions) Dial() WebsocketConnection {
 			"Host":                     {Info.Host},
 			"User-Agent":               {Info.UserAgent},
 			"Sec-WebSocket-Extensions": {Info.Extensions},
-		}, 5*1024*1024, 5*1024*1024) // 5mb of allocated storage.
+		}, Info.ReadSize, Info.WriteSize) // 5mb of allocated storage.
 		return WebsocketConnection{
 			Conn: conn,
 			Resp: resp,
