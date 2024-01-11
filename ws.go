@@ -36,6 +36,7 @@ type WebsocketOptions struct {
 	Host                string
 	Extensions          string
 	UserAgent           string
+	CF_Clearance        string
 	ReadSize, WriteSize int
 }
 
@@ -62,12 +63,14 @@ func (Info *WebsocketOptions) Dial() WebsocketConnection {
 	if conn, err := net.Dial("tcp", Info.ServerName+":"+strings.ReplaceAll(Info.PORT, ":", "")); err == nil {
 		conn, resp, err := gorilla.NewClient(tls.UClient(conn, &tls.Config{
 			ServerName: Info.ServerName,
-		}, tls.HelloChrome_112, true, true).NetConn(), i, map[string][]string{
+		}, tls.HelloChrome_120, true, true).NetConn(), i, map[string][]string{
 			"Origin":                   {Info.Origin},
 			"Host":                     {Info.Host},
 			"User-Agent":               {Info.UserAgent},
 			"Sec-WebSocket-Extensions": {Info.Extensions},
+			"Cookie":                   {"cf_clearance=" + Info.CF_Clearance},
 		}, Info.ReadSize, Info.WriteSize) // 5mb of allocated storage.
+
 		return WebsocketConnection{
 			Conn: conn,
 			Resp: resp,
