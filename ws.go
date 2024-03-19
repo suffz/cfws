@@ -5,29 +5,11 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	tls "github.com/bogdanfinn/utls"
 	gorilla "github.com/gorilla/websocket"
 )
-
-/*
-func main() {
-	conn := (&WebsocketOptions{
-		URL:        "wss://ws.bloxflip.com/socket.io/?EIO=3&transport=websocket",
-		ServerName: "ws.bloxflip.com", PORT: "443",
-		Origin:    "https://bloxflip.com",
-		Host:      "ws.bloxflip.com",
-		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.203",
-		ReadSize:  MBs(5),
-		WriteSize: MBs(5),
-		// Extensions: "permessage-deflate; client_max_window_bits",
-	}).Dial()
-	for {
-		_, msg, err := conn.Conn.ReadMessage()
-		fmt.Println(string(msg), err)
-	}
-}
-*/
 
 type WebsocketOptions struct {
 	URL                 string
@@ -38,6 +20,7 @@ type WebsocketOptions struct {
 	UserAgent           string
 	CF_Clearance        string
 	ReadSize, WriteSize int
+	KeepAlive           bool
 }
 
 // If you use the MBs() func just know it scales up to Megabits, 5 = 5MB.
@@ -60,7 +43,14 @@ func (Info *WebsocketOptions) Dial() WebsocketConnection {
 		}
 	}
 
-	if conn, err := net.Dial("tcp", Info.ServerName+":"+strings.ReplaceAll(Info.PORT, ":", "")); err == nil {
+	var conn net.Conn
+	if Info.KeepAlive {
+		conn, err = (&net.Dialer{KeepAlive: time.Hour * 999999}).Dial("tcp", Info.ServerName+":"+strings.ReplaceAll(Info.PORT, ":", ""))
+	} else {
+		conn, err = net.Dial("tcp", Info.ServerName+":"+strings.ReplaceAll(Info.PORT, ":", ""))
+	}
+
+	if err == nil {
 		conn, resp, err := gorilla.NewClient(tls.UClient(conn, &tls.Config{
 			ServerName: Info.ServerName,
 		}, tls.HelloChrome_120, true, true).NetConn(), i, map[string][]string{
@@ -70,7 +60,6 @@ func (Info *WebsocketOptions) Dial() WebsocketConnection {
 			"Sec-WebSocket-Extensions": {Info.Extensions},
 			"Cookie":                   {"cf_clearance=" + Info.CF_Clearance},
 		}, Info.ReadSize, Info.WriteSize) // 5mb of allocated storage.
-
 		return WebsocketConnection{
 			Conn: conn,
 			Resp: resp,
