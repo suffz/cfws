@@ -129,11 +129,8 @@ TBj0/VLZjmmx6BEP3ojY+x1J96relc8geMJgEtslQIxq/H5COEBkEveegeGTLg==
 		}
 		var junk = make([]byte, 4096)
 		conn.Read(junk)
-
-		fmt.Println(string(junk), conn, fmt.Sprintf("CONNECT %v:%v HTTP/1.1\r\nHost: %v:%v\r\nProxy-Connection: keep-alive\r\nUser-Agent: %v\r\n\r\n", Info.ServerName, Info.PORT, Info.ServerName, Info.PORT, Info.UserAgent))
 		switch Status := string(junk); Status[9:12] {
 		case "200":
-			fmt.Println(Status, "...")
 			return conn, nil, true, ip[0]
 			//return tls.Client(conn, &tls.Config{InsecureSkipVerify: true, ServerName: Info.ServerName}), true, ip[0]
 		case "407":
