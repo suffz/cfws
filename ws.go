@@ -35,9 +35,14 @@ func MBs(i int) int {
 }
 
 type WebsocketConnection struct {
-	Conn *gorilla.Conn
-	Resp *http.Response
-	Err  error
+	Conn      *gorilla.Conn
+	Resp      *http.Response
+	Err       error
+	ProxyInfo ProxyData
+}
+
+type ProxyData struct {
+	ip, port, user, pass string
 }
 
 func (Info *WebsocketOptions) Dial() WebsocketConnection {
@@ -74,9 +79,10 @@ func (Info *WebsocketOptions) Dial() WebsocketConnection {
 			"Cookie":                   {"cf_clearance=" + Info.CF_Clearance},
 		}, Info.ReadSize, Info.WriteSize) // 5mb of allocated storage.
 		return WebsocketConnection{
-			Conn: conn,
-			Resp: resp,
-			Err:  err,
+			Conn:      conn,
+			Resp:      resp,
+			Err:       err,
+			ProxyInfo: GetProxyStrings(Info.Proxy),
 		}
 	} else {
 		return WebsocketConnection{
@@ -141,8 +147,9 @@ TBj0/VLZjmmx6BEP3ojY+x1J96relc8geMJgEtslQIxq/H5COEBkEveegeGTLg==
 	}
 }
 
-func GetProxyStrings(New string) (ip, port, user, pass string) {
-	switch data := strings.Split(New, ":"); len(data) {
+func GetProxyStrings(proxy string) ProxyData {
+	var ip, port, user, pass string
+	switch data := strings.Split(proxy, ":"); len(data) {
 	case 2:
 		ip = data[0]
 		port = data[1]
@@ -152,5 +159,5 @@ func GetProxyStrings(New string) (ip, port, user, pass string) {
 		user = data[2]
 		pass = data[3]
 	}
-	return
+	return ProxyData{ip: ip, port: port, user: user, pass: pass}
 }
