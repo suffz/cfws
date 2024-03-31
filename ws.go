@@ -1,6 +1,7 @@
 package cfws
 
 import (
+	"crypto/x509"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	tls "github.com/bogdanfinn/utls"
+	"github.com/gorilla/websocket"
 	gorilla "github.com/gorilla/websocket"
 )
 
@@ -26,6 +28,14 @@ type WebsocketOptions struct {
 	ReadSize, WriteSize int
 	KeepAlive           bool
 	Proxy               string
+	Cert                *x509.CertPool
+	InitMessages        []string
+	Headers             []Headers
+}
+
+type Headers struct {
+	Name  string
+	Value string
 }
 
 // If you use the MBs() func just know it scales up to Megabits, 5 = 5MB.
@@ -68,16 +78,40 @@ func (Info *WebsocketOptions) Dial() WebsocketConnection {
 	}
 
 	if err == nil {
+		var Config = &tls.Config{ServerName: Info.ServerName}
+		if Info.Proxy != "" {
+			Config.RootCAs = Info.Cert
+			Config.ClientCAs = Info.Cert
+		}
 
-		conn, resp, err := gorilla.NewClient(tls.UClient(conn, &tls.Config{
-			ServerName: Info.ServerName,
-		}, tls.HelloChrome_120, true, true).NetConn(), i, map[string][]string{
+		var Headers map[string][]string = make(map[string][]string)
+
+		Headers = map[string][]string{
+			"Origin":                   {Info.Origin},
+			"Host":                     {Info.Host},
+			"User-Agent":               {Info.UserAgent},
+			"Sec-WebSocket-Extensions": {Info.Extensions},
+			"Cookie":                   {"cf_clearance=" + Info.CF_Clearance},
+		}
+
+		if len(Info.Headers) != 0 {
+			for _, header := range Info.Headers {
+				Headers[header.Name] = []string{header.Value}
+			}
+		}
+
+		conn, resp, err := gorilla.NewClient(tls.UClient(conn, Config, tls.HelloChrome_120, true, true).NetConn(), i, map[string][]string{
 			"Origin":                   {Info.Origin},
 			"Host":                     {Info.Host},
 			"User-Agent":               {Info.UserAgent},
 			"Sec-WebSocket-Extensions": {Info.Extensions},
 			"Cookie":                   {"cf_clearance=" + Info.CF_Clearance},
 		}, Info.ReadSize, Info.WriteSize) // 5mb of allocated storage.
+		if err == nil && len(Info.InitMessages) > 0 {
+			for _, msg := range Info.InitMessages {
+				conn.WriteMessage(websocket.TextMessage, []byte(msg))
+			}
+		}
 		return WebsocketConnection{
 			Conn:      conn,
 			Resp:      resp,
@@ -101,8 +135,9 @@ func (Info *WebsocketOptions) Connect() (net.Conn, error, bool, string) {
 		} else {
 			conn.Write([]byte(fmt.Sprintf("CONNECT %v:%v HTTP/1.1\r\nHost: %v:%v\r\nProxy-Connection: keep-alive\r\nUser-Agent: %v\r\n\r\n", Info.ServerName, Info.PORT, Info.ServerName, Info.PORT, Info.UserAgent)))
 		}
-		var junk = make([]byte, 20)
+		var junk = make([]byte, 200)
 		conn.Read(junk)
+
 		switch Status := string(junk); Status[9:12] {
 		case "200":
 			return conn, nil, true, ip[0]
@@ -129,4 +164,9 @@ func GetProxyStrings(proxy string) ProxyData {
 		pass = data[3]
 	}
 	return ProxyData{ip: ip, port: port, user: user, pass: pass}
+}
+
+func ReturnCertBasedOnBytes(Payload []byte) (Config *x509.CertPool) {
+	Config.AppendCertsFromPEM(Payload)
+	return
 }
