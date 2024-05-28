@@ -100,13 +100,7 @@ func (Info *WebsocketOptions) Dial() WebsocketConnection {
 			}
 		}
 
-		conn, resp, err := gorilla.NewClient(tls.UClient(conn, Config, tls.HelloChrome_120, true, true).NetConn(), i, map[string][]string{
-			"Origin":                   {Info.Origin},
-			"Host":                     {Info.Host},
-			"User-Agent":               {Info.UserAgent},
-			"Sec-WebSocket-Extensions": {Info.Extensions},
-			"Cookie":                   {"cf_clearance=" + Info.CF_Clearance},
-		}, Info.ReadSize, Info.WriteSize) // 5mb of allocated storage.
+		conn, resp, err := gorilla.NewClient(tls.UClient(conn, Config, tls.HelloChrome_120, true, true).NetConn(), i, Headers, Info.ReadSize, Info.WriteSize) // 5mb of allocated storage.
 		if err == nil && len(Info.InitMessages) > 0 {
 			for _, msg := range Info.InitMessages {
 				conn.WriteMessage(websocket.TextMessage, []byte(msg))
